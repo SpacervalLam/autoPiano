@@ -1,48 +1,84 @@
-# VibePiano
+# AutoPiano
 
-轻量、低延迟且可视化的桌面钢琴原型（项目说明与快速上手）。
+A simple web-based piano application with keyboard play and auto-play features.
 
-## 项目愿景
+## Quick Start
 
-VibePiano 是一款极致简约、低延迟、兼具“听音识谱”能力的桌面钢琴应用。既可作为程序员的键盘解压工具，也可用于自动演奏、音频转谱与可视化练习。
+### Using Python Launcher (Recommended)
 
-## 核心模块
+1. Double-click `start.bat` or run `python launch.py`
+2. **One terminal only** - All services managed in one window
+3. **Auto-opens browser** to http://localhost:8000
+4. Press `Ctrl+C` to stop all services
 
-- 手动弹奏（键盘映射、低延迟播放、视觉反馈）
-- 智能音频提取（音频 -> MIDI，AI 转谱占位）
-- 自动演播（可视化演奏、同步渲染、录音导出、音色切换）
+### Manual Start
 
-## 快速上手（本地原型）
-
-1. 创建并激活 Python 虚拟环境
-
+**Backend (Flask)**:
 ```bash
-python -m venv .venv
-.\.venv\Scripts\activate
+cd backend
+python app.py
 ```
 
-2. 安装依赖并启动后端（Flask）
-
+**Frontend (HTTP Server)**:
 ```bash
-pip install -r requirements.txt
-python backend/app.py
+cd frontend
+python -m http.server 8000
 ```
 
-3. 打开前端原型：在浏览器中打开 `frontend/index.html`（直接用浏览器打开即可）。
+## Usage
 
-## 本仓库结构（示例）
+### Keyboard Play
+- **Bass (C3-B3)**: Z X C V B N M
+- **Middle (C4-B4)**: A S D F G H J
+- **Treble (C5-B5)**: Q W E R T Y U
 
-- `backend/` — 后端占位服务（Flask）
-- `frontend/` — 前端原型（HTML + JS 键盘映射）
-- `src/` — 将来放核心库与共享代码
-- `docs/` — 架构与设计说明
+### Mouse Play
+- Click on piano keys to play sounds
 
-## 开发建议与下一步
+### Auto Play
+1. Select a song from the dropdown
+2. Click "🎵 自动播放" button
 
-- 集成真正的音色采样以降低感知延迟（预加载样本）。
-- 后端可以用 Python 集成 Magenta / Basic-Pitch 实现转谱。
-- 增加 WebSocket 或 WebAudio Worklet 优化低延迟播放与多通道同步。
+## Adding Songs
 
----
+1. Place song files (.txt format) in the `songs` folder
+2. Refresh the page, new songs will appear in the selection list automatically
 
-详见 `docs/architecture.md` 获取架构说明。
+## Song Format
+
+Format: `time(ms) note duration(ms)`
+
+Example:
+```
+0       5+      375
+375     2++     375
+750     1++     375
+```
+
+Note mapping:
+- 1-7 (C3-B3): z-x-c-v-b-n-m
+- 1+-7+ (C4-B4): a-s-d-f-g-h-j
+- 1++-7++ (C5-B5): q-w-e-r-t-y-u
+
+## Project Structure
+
+```
+autoPiano/
+├── backend/           # Backend Flask application
+│   └── app.py
+├── frontend/          # Frontend web application
+│   ├── index.html
+│   └── main.js
+├── songs/             # Songs folder
+│   ├── song1.txt
+│   ├── song2.txt
+│   └── ...
+├── macro_player.py    # Terminal-based auto player
+├── launch.py          # Python service launcher (RECOMMENDED)
+├── start.bat          # Launch via Python
+└── README.md
+```
+
+## Stopping Services
+
+Press `Ctrl+C` in the service window to stop all services.
