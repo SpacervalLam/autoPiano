@@ -289,8 +289,36 @@ def play(events, start_delay=2.0):
     print("演奏结束！")
 
 
+def list_songs(songs_dir="songs"):
+    songs_path = Path(songs_dir)
+    if not songs_path.exists():
+        return []
+    
+    songs = []
+    for file in sorted(songs_path.glob("*.txt")):
+        songs.append(str(file))
+    return songs
+
+def select_song(songs):
+    print("\n可用曲目:")
+    for i, song in enumerate(songs, 1):
+        song_name = Path(song).stem
+        print(f"  {i}. {song_name}")
+    
+    while True:
+        try:
+            choice = input("\n请选择曲目编号 (1-{}): ".format(len(songs))).strip()
+            if not choice:
+                return songs[0]
+            index = int(choice) - 1
+            if 0 <= index < len(songs):
+                return songs[index]
+            print("请输入有效的编号！")
+        except ValueError:
+            print("请输入有效的数字！")
+
 if __name__ == "__main__":
-    path = "events.json"
+    path = None
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "--method" and i + 1 < len(sys.argv):
@@ -302,6 +330,15 @@ if __name__ == "__main__":
         else:
             path = sys.argv[i]
             i += 1
+
+    songs = list_songs()
+    if not songs and path is None:
+        print("songs目录下没有找到txt文件！")
+        sys.exit(1)
+    
+    if path is None:
+        path = select_song(songs)
+        print(f"\n已选择: {Path(path).stem}")
 
     if path.endswith(".json"):
         events = load_events(path)
