@@ -45,6 +45,8 @@
       try { osc.disconnect(); } catch(e) {}
       try { oscGain.disconnect(); } catch(e) {}
     });
+    try { h.dynamicLowpass.disconnect(); } catch(e) {}
+    try { h.cabinetResonance.disconnect(); } catch(e) {}
     try { h.masterGain.disconnect(); } catch(e) {}
   }
 
@@ -60,8 +62,15 @@
     if(ctx.state === 'suspended') ctx.resume();
 
     const baseFreq = freq[name] || 440;
+    
+    // ─── 音区检测 ───────────────────────────────────────────────
+    const isLow = baseFreq < 200;   // 低音区（C3-F3）
+    const isHigh = baseFreq > 600;  // 高音区（F5以上）
+    
+    // ─── 振荡器设置 ─────────────────────────────────────────────
     const oscillators = [];
 
+    // 主振荡器（三角形波，柔和的基础音色）
     const mainOsc = ctx.createOscillator();
     const mainGain = ctx.createGain();
     mainOsc.type = 'triangle';
@@ -70,6 +79,7 @@
     mainOsc.connect(mainGain);
     oscillators.push({ osc: mainOsc, oscGain: mainGain });
 
+    // 第二泛音（2倍频，正弦波）
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
@@ -78,6 +88,7 @@
     osc2.connect(gain2);
     oscillators.push({ osc: osc2, oscGain: gain2 });
 
+    // 第三泛音（3倍频，正弦波）
     const osc3 = ctx.createOscillator();
     const gain3 = ctx.createGain();
     osc3.type = 'sine';
@@ -86,36 +97,59 @@
     osc3.connect(gain3);
     oscillators.push({ osc: osc3, oscGain: gain3 });
 
+    // ─── 音频处理链 ─────────────────────────────────────────────
     const masterGain = ctx.createGain();
-    const lowPassFilter = ctx.createBiquadFilter();
+    
+    // 时变低通滤波器（模拟击弦后高频逐渐消失）
+    const dynamicLowpass = ctx.createBiquadFilter();
+    dynamicLowpass.type = 'lowpass';
+    dynamicLowpass.Q.value = 0.7;
+    
+    // 静态共鸣滤波器（模拟钢琴箱体共振）
+    const cabinetResonance = ctx.createBiquadFilter();
+    cabinetResonance.type = 'bandpass';
+    cabinetResonance.frequency.value = 300;
+    cabinetResonance.Q.value = 1.2;
+    cabinetResonance.gain.value = 2.5;
+    
+    // 高通滤波器（去除低频噪音）
     const highPassFilter = ctx.createBiquadFilter();
-
-    lowPassFilter.type = 'lowpass';
-    lowPassFilter.frequency.value = 3500;
-    lowPassFilter.Q.value = 0.5;
-
     highPassFilter.type = 'highpass';
     highPassFilter.frequency.value = 50;
 
-    oscillators.forEach(({ oscGain }) => oscGain.connect(lowPassFilter));
-    lowPassFilter.connect(highPassFilter);
+    // 连接链路：振荡器 -> 时变低通 -> 共鸣滤波 -> 高通 -> 主增益
+    oscillators.forEach(({ oscGain }) => oscGain.connect(dynamicLowpass));
+    dynamicLowpass.connect(cabinetResonance);
+    cabinetResonance.connect(highPassFilter);
     highPassFilter.connect(masterGain);
     masterGain.connect(ctx.destination);
 
     oscillators.forEach(({ osc }) => osc.start());
 
     const now = ctx.currentTime;
-    const attack  = 0.008;
-    const decay   = 0.3;
-    const sustain = 0.35;
-    const peak    = 0.55;
+    
+    // ─── 精细化振幅包络（双阶段衰减 + 音区差异化） ─────────────────
+    const attack  = isHigh ? 0.003 : isLow ? 0.01 : 0.006;  // 极快起音
+    const decay1  = isHigh ? 0.15 : isLow ? 0.4 : 0.25;     // 第一阶段快速衰减
+    const decay2  = isHigh ? 0.8 : isLow ? 2.5 : 1.5;       // 第二阶段缓慢衰减
+    const peak    = 0.6;
+    const sustain1 = peak * (isHigh ? 0.25 : isLow ? 0.5 : 0.35);  // 第一延音水平
+    const sustain2 = peak * (isHigh ? 0.05 : isLow ? 0.15 : 0.1);  // 第二延音水平（最终）
 
+    // 时变低通滤波器：初始高频丰富，随后快速下降
+    const initFreq = isHigh ? 8000 : isLow ? 4000 : 6000;
+    const endFreq = isHigh ? 2000 : isLow ? 1000 : 1500;
+    dynamicLowpass.frequency.setValueAtTime(initFreq, now);
+    dynamicLowpass.frequency.linearRampToValueAtTime(endFreq, now + 0.3);
+
+    // 振幅包络：起音 -> 快速衰减 -> 缓慢衰减
     masterGain.gain.cancelScheduledValues(now);
     masterGain.gain.setValueAtTime(0.0, now);
     masterGain.gain.linearRampToValueAtTime(peak, now + attack);
-    masterGain.gain.linearRampToValueAtTime(sustain * peak, now + attack + decay);
+    masterGain.gain.linearRampToValueAtTime(sustain1, now + attack + decay1);
+    masterGain.gain.linearRampToValueAtTime(sustain2, now + attack + decay1 + decay2);
 
-    const maxDuration = 5.0;
+    const maxDuration = isLow ? 8.0 : isHigh ? 3.0 : 5.0;  // 低音时长更长
     // safetyTimeout 使用闭包捕获 h，不依赖 active[name]
     const safetyTimeout = setTimeout(() => {
       if(active[name] === h) {
@@ -128,7 +162,7 @@
       }
     }, maxDuration * 1000);
 
-    const h = { oscillators, masterGain, startedAt: now, safetyTimeout };
+    const h = { oscillators, masterGain, dynamicLowpass, cabinetResonance, startedAt: now, safetyTimeout };
     active[name] = h;
     if(fromPointer) activeFromPointer.add(name);
 
