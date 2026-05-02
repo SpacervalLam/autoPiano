@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VibePiano 原型</title>
+  <style>
+    body { background:#0b0f18; color:#e6eef6; font-family:Segoe UI, sans-serif; padding:20px }
+    .keyboard { display:flex; user-select:none; gap:6px }
+    .key { width:56px; height:220px; border-radius:4px; display:flex;align-items:flex-end;justify-content:center; font-size:12px; background:#fff; color:#000; box-shadow:0 4px 0 rgba(0,0,0,0.25); position:relative; transition:transform 0.06s ease, box-shadow 0.06s ease }
+    .key .label { padding-bottom:8px; opacity:0.85 }
+    .pressed { transform: translateY(10px); box-shadow:0 1px 0 rgba(0,0,0,0.25); }
+    .controls { margin-bottom:16px }
+    button { padding:8px 12px; border-radius:6px; border:0; background:#2b6cff; color:white }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button id="autoPlay">请求后端示例并自动播放</button>
+    <span style="margin-left:12px">提示：使用键盘 A S D F G H J 对应 C4-B4，W E T Y U 为黑键</span>
+  </div>
+
+  <div class="keyboard" id="keyboard"></div>
+
+  <script src="main.js?v=2"></script>
+</body>
+</html>
