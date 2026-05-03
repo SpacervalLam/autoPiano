@@ -216,9 +216,9 @@
 
   // 渲染 21 个白键（C3..B5）
   const keyboard = document.getElementById('keyboard');
-  whiteNotes.forEach(n=>{
+  whiteNotes.forEach((n, index)=>{
     const k = document.createElement('div');
-    k.className = 'key';
+    k.className = 'white-key';
 
     const label = document.createElement('div');
     label.className = 'note-label';
@@ -242,6 +242,20 @@
     k.addEventListener('pointercancel',(ev)=>{ try{ k.releasePointerCapture(ev.pointerId); }catch(e){} stopNote(n); });
 
     keyboard.appendChild(k);
+  });
+
+  // 添加视觉黑键（仅供视觉效果，无功能）
+  const blackKeyPositions = [0, 1, 3, 4, 5];
+  const whiteKeyWidth = 62;
+
+  [0, 1, 2].forEach(octaveOffset => {
+    blackKeyPositions.forEach(pos => {
+      const blackKey = document.createElement('div');
+      blackKey.className = 'black-key';
+      const position = (octaveOffset * 7 + pos) * whiteKeyWidth + whiteKeyWidth - 18;
+      blackKey.style.left = `${position}px`;
+      keyboard.appendChild(blackKey);
+    });
   });
 
   window.addEventListener('pointerup', ()=>{
@@ -271,7 +285,7 @@
   });
 
   function highlight(note,on){
-    const el = Array.from(document.querySelectorAll('.key')).find(x=>x.dataset.note===note);
+    const el = Array.from(document.querySelectorAll('.white-key')).find(x=>x.dataset.note===note);
     if(!el) return;
     if(on) el.classList.add('pressed'); else el.classList.remove('pressed');
   }
@@ -297,6 +311,11 @@
         option.textContent = '没有可用的曲目';
         select.appendChild(option);
       }
+      const manageOption = document.createElement('option');
+      manageOption.value = '__manage__';
+      manageOption.textContent = '管理曲目';
+      manageOption.style.color = '#888';
+      select.appendChild(manageOption);
     } catch(err) {
       console.error('加载歌曲列表失败', err);
       const select = document.getElementById('songSelect');
@@ -304,46 +323,223 @@
     }
   }
 
+  // 下拉框选择变化处理
+  document.getElementById('songSelect').addEventListener('change', async (e) => {
+    if (e.target.value === '__manage__') {
+      e.target.value = '';
+      document.getElementById('manageModal').style.display = 'flex';
+      loadManageModal();
+    }
+  });
+
+  // 加载管理模态框内容
+  async function loadManageModal() {
+    const songList = document.getElementById('songList');
+    songList.innerHTML = '';
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/songs');
+      const data = await res.json();
+      if (data.songs && data.songs.length > 0) {
+        data.songs.forEach(song => {
+          const item = document.createElement('div');
+          item.className = 'song-item';
+          item.innerHTML = `
+            <span class="song-name" style="flex:1; color:#f1f1f1;">${song.name}</span>
+            <button class="rename-btn" data-file="${song.filename}" data-name="${song.name}">重命名</button>
+            <button class="del-btn" data-file="${song.filename}" style="color:#f44336;">删除</button>
+          `;
+          songList.appendChild(item);
+        });
+        document.querySelectorAll('.del-btn').forEach(btn => {
+          btn.addEventListener('click', async (ev) => {
+            const filename = ev.target.dataset.file;
+            if (confirm('确定要删除这首曲目吗？')) {
+              await fetch('http://127.0.0.1:5000/api/songs/' + filename, { method: 'DELETE' });
+              loadManageModal();
+            }
+          });
+        });
+        document.querySelectorAll('.rename-btn').forEach(btn => {
+          btn.addEventListener('click', async (ev) => {
+            const filename = ev.target.dataset.file;
+            const currentName = ev.target.dataset.name;
+            const newName = prompt('请输入新的曲目名称：', currentName);
+            if (newName && newName.trim() && newName !== currentName) {
+              const newFilename = newName.trim() + '.txt';
+              await fetch('http://127.0.0.1:5000/api/rename', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_filename: filename, new_filename: newFilename })
+              });
+              loadManageModal();
+            }
+          });
+        });
+      } else {
+        songList.innerHTML = '<p style="color:#888;">没有可管理的曲目</p>';
+      }
+    } catch(err) {
+      songList.innerHTML = '<p style="color:#f44336;">加载失败</p>';
+    }
+  }
+
+  // 关闭模态框
+  document.getElementById('closeModal').addEventListener('click', () => {
+    document.getElementById('manageModal').style.display = 'none';
+  });
+
+  document.getElementById('manageModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('manageModal')) {
+      document.getElementById('manageModal').style.display = 'none';
+    }
+  });
+
   // 自动播放功能
+  let autoPlayTimeouts = [];
   document.getElementById('autoPlay').addEventListener('click', async ()=>{
+    const btn = document.getElementById('autoPlay');
+
+    if (btn.classList.contains('playing')) {
+      autoPlayTimeouts.forEach(t => clearTimeout(t));
+      autoPlayTimeouts = [];
+      Object.keys(active).forEach(n => { if(active[n]) forceStopNote(n); });
+      btn.classList.remove('playing');
+      btn.textContent = '🎵 自动播放';
+      return;
+    }
+
     try{
       const select = document.getElementById('songSelect');
       const songName = select.value;
-      
-      const res = await fetch('http://127.0.0.1:5000/api/transcribe', { 
+
+      if (!songName || songName === '__manage__') return;
+
+      const res = await fetch('http://127.0.0.1:5000/api/transcribe', {
         method:'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ song: songName })
       });
       const notes = await res.json();
 
-      // 立即强制停止所有正在播放的音符（autoPlay 场景不需要 release 淡出）
       Object.keys(active).forEach(n => { if(active[n]) forceStopNote(n); });
 
+      btn.classList.add('playing');
+      btn.textContent = '🎵 播放中...';
+
       const start = ctx.currentTime + 0.1;
+      let maxEndTime = 0;
 
       notes.forEach(n=>{
         const name = n.note;
         const t = start + n.time;
         const duration = n.duration;
+        maxEndTime = Math.max(maxEndTime, t + duration);
 
         const playDelay = (t - ctx.currentTime) * 1000;
         if(playDelay >= 0) {
-          setTimeout(() => {
+          const timeoutId = setTimeout(() => {
             playNote(name, false);
             highlight(name, true);
 
-            setTimeout(() => {
+            const stopTimeoutId = setTimeout(() => {
               stopNote(name);
               highlight(name, false);
             }, duration * 1000);
+            autoPlayTimeouts.push(stopTimeoutId);
           }, playDelay);
+          autoPlayTimeouts.push(timeoutId);
         }
       });
+
+      const endDelay = (maxEndTime - ctx.currentTime + 0.5) * 1000;
+      const endTimeoutId = setTimeout(() => {
+        btn.classList.remove('playing');
+        btn.textContent = '🎵 自动播放';
+        autoPlayTimeouts = [];
+      }, endDelay);
+      autoPlayTimeouts.push(endTimeoutId);
 
       console.log(`自动播放开始，共 ${notes.length} 个音符`);
     }catch(err){ console.error('自动播放失败',err); }
   });
+
+  // 录制功能
+  let isRecordingPending = false;  // 待录制状态
+  let isRecording = false;          // 正式录制状态
+  let recordingStartTime = 0;
+  let recordedNotes = [];
+
+  document.getElementById('recordBtn').addEventListener('click', () => {
+    isRecordingPending = true;
+    isRecording = false;
+    recordingStartTime = 0;
+    recordedNotes = [];
+    
+    document.getElementById('recordBtn').style.display = 'none';
+    document.getElementById('stopRecordBtn').style.display = 'inline-block';
+    document.getElementById('stopRecordBtn').classList.add('recording');
+    document.getElementById('stopRecordBtn').textContent = '⏹️ 待录制';
+    
+    console.log('进入待录制状态，请按下第一个音符开始录制');
+  });
+
+  document.getElementById('stopRecordBtn').addEventListener('click', async () => {
+    isRecordingPending = false;
+    isRecording = false;
+    recordingStartTime = 0;
+    
+    document.getElementById('stopRecordBtn').style.display = 'none';
+    document.getElementById('stopRecordBtn').classList.remove('recording');
+    document.getElementById('stopRecordBtn').textContent = '⏹️ 停止录制';
+    document.getElementById('recordBtn').style.display = 'inline-block';
+    
+    if (recordedNotes.length > 0) {
+      const songName = prompt('请输入录制的曲目名称：');
+      if (songName && songName.trim()) {
+        try {
+          const res = await fetch('http://127.0.0.1:5000/api/record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              song_name: songName.trim(),
+              notes: recordedNotes
+            })
+          });
+          const result = await res.json();
+          if (result.success) {
+            alert('录制成功！曲目已保存');
+            loadSongList();
+          } else {
+            alert('录制失败：' + result.message);
+          }
+        } catch (err) {
+          console.error('录制保存失败', err);
+          alert('录制保存失败');
+        }
+      }
+    }
+    
+    console.log('停止录制，共录制 ' + recordedNotes.length + ' 个音符');
+  });
+
+  // 重写 playNote 以支持录制
+  const originalPlayNote = playNote;
+  playNote = function(name, fromPointer = false) {
+    if (isRecordingPending && !isRecording) {
+      // 第一个音符，正式开始录制
+      isRecording = true;
+      recordingStartTime = ctx.currentTime;
+      document.getElementById('stopRecordBtn').textContent = '⏹️ 录制中';
+      console.log('第一个音符已按下，正式开始录制');
+    }
+    
+    if (isRecording) {
+      const time = ctx.currentTime - recordingStartTime;
+      recordedNotes.push({ note: name, time: time, duration: 0.5 });
+      console.log(`录制音符: ${name} at ${time.toFixed(3)}s`);
+    }
+    originalPlayNote(name, fromPointer);
+  };
 
   // 页面加载时获取歌曲列表
   loadSongList();

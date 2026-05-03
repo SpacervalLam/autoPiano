@@ -10,9 +10,9 @@
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
       color: #f1f1f1;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       padding: 40px 20px;
@@ -20,25 +20,23 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      overflow-x: hidden;
     }
-    
-    h1 {
-      text-align: center;
-      margin-bottom: 10px;
-      font-size: 2.5rem;
-      background: linear-gradient(90deg, #667eea, #764ba2);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: -1;
     }
-    
-    .subtitle {
-      text-align: center;
-      color: #a0a0a0;
-      margin-bottom: 30px;
-      font-size: 0.95rem;
-    }
-    
+
     .controls {
       margin-bottom: 30px;
       display: flex;
@@ -47,127 +45,243 @@
       flex-wrap: wrap;
       justify-content: center;
     }
-    
+
     button {
-      padding: 12px 28px;
-      border-radius: 25px;
-      border: none;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-      transition: all 0.3s ease;
-    }
-    
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-    }
-    
-    button:active {
-      transform: translateY(0);
-    }
-    
-    .hint {
-      color: #b0b0b0;
+      padding: 10px 24px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      color: #f1f1f1;
       font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
-    
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    button.recording {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.5);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    button.playing {
+      background: rgba(102, 126, 234, 0.2);
+      border-color: rgba(102, 126, 234, 0.5);
+      animation: pulse-blue 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    }
+
+    @keyframes pulse-blue {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+    }
+
+    .keyboard-container {
+      position: relative;
+      padding: 40px 50px;
+      background: linear-gradient(145deg, #2a2a4a, #1f1f3a);
+      border-radius: 20px;
+      box-shadow:
+        0 25px 80px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+    }
+
     .keyboard {
       display: flex;
       user-select: none;
-      gap: 4px;
-      padding: 30px 40px;
-      background: linear-gradient(145deg, #2a2a4a, #1f1f3a);
-      border-radius: 15px;
-      box-shadow: 
-        0 20px 60px rgba(0, 0, 0, 0.5),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      position: relative;
     }
-    
-    .key {
-      width: 58px;
-      height: 230px;
-      border-radius: 0 0 8px 8px;
+
+    .white-key {
+      width: 60px;
+      height: 240px;
+      border-radius: 0 0 10px 10px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-end;
       font-size: 11px;
-      background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 80%, #e0e0e0 100%);
-      color: #333;
-      box-shadow: 
-        0 6px 0 #a0a0a0,
-        0 8px 10px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 #fff;
+      background: linear-gradient(180deg, #ffffff 0%, #f8f8f8 50%, #f0f0f0 80%, #e8e8e8 100%);
+      color: #444;
+      box-shadow:
+        0 8px 0 #c0c0c0,
+        0 10px 20px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.1);
       position: relative;
       transition: all 0.08s ease;
       cursor: pointer;
       border: 1px solid #d0d0d0;
+      margin-right: 2px;
     }
-    
-    .key:hover {
-      background: linear-gradient(180deg, #f8f8f8 0%, #e8e8e8 80%, #d8d8d8 100%);
+
+    .white-key:last-child {
+      margin-right: 0;
     }
-    
-    .key .note-label {
-      font-weight: bold;
-      padding-bottom: 15px;
-      opacity: 0.7;
+
+    .white-key:hover {
+      background: linear-gradient(180deg, #fafafa 0%, #f0f0f0 50%, #e8e8e8 80%, #e0e0e0 100%);
     }
-    
-    .key .key-hint {
+
+    .white-key .note-label {
+      font-weight: 600;
+      padding-bottom: 18px;
+      opacity: 0.65;
+      letter-spacing: 0.5px;
+    }
+
+    .white-key .key-hint {
       position: absolute;
-      bottom: 40px;
-      background: rgba(102, 126, 234, 0.9);
+      bottom: 45px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 3px 8px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 5px;
       font-size: 10px;
       font-weight: 600;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
     }
-    
-    .pressed {
-      transform: translateY(6px);
-      box-shadow: 
-        0 1px 0 #a0a0a0,
-        0 3px 5px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 #fff;
-      background: linear-gradient(180deg, #f0f0f0 0%, #e0e0e0 80%, #d0d0d0 100%);
+
+    .white-key.pressed {
+      transform: translateY(8px);
+      box-shadow:
+        0 2px 0 #c0c0c0,
+        0 4px 8px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      background: linear-gradient(180deg, #e8e8e8 0%, #e0e0e0 50%, #d8d8d8 80%, #d0d0d0 100%);
     }
-    
-    .pressed .note-label {
+
+    .white-key.pressed .note-label {
       color: #667eea;
+      opacity: 0.85;
+    }
+
+    .black-key {
+      position: absolute;
+      width: 36px;
+      height: 150px;
+      border-radius: 0 0 6px 6px;
+      background: linear-gradient(180deg, #333 0%, #1a1a1a 50%, #0d0d0d 100%);
+      box-shadow:
+        0 6px 0 #000,
+        0 8px 15px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      z-index: 10;
+      cursor: default;
+      pointer-events: none;
+      border: 1px solid #222;
+    }
+
+    .black-key::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      right: 2px;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 100%);
+      border-radius: 0 0 4px 4px;
     }
 
     .song-selector {
-      margin-bottom: 20px;
+      margin-bottom: 25px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .song-selector select {
-      padding: 10px 15px;
-      border-radius: 8px;
-      border: 2px solid rgba(102, 126, 234, 0.5);
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      font-size: 1rem;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+      color: #f1f1f1;
+      font-size: 0.95rem;
       cursor: pointer;
-      min-width: 200px;
+      min-width: 220px;
+      transition: all 0.2s ease;
+    }
+
+    .song-selector select:hover {
+      border-color: rgba(102, 126, 234, 0.5);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     .song-selector select option {
       background: #2a2a4a;
-      color: white;
+      color: #f1f1f1;
     }
 
     .song-selector label {
-      color: #b0b0b0;
+      color: #a0a0a0;
       font-size: 0.9rem;
+    }
+
+    .song-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .song-item span {
+      color: #f1f1f1;
+    }
+
+    .song-item button {
+      padding: 5px 12px;
+      font-size: 0.85rem;
+      margin-left: 5px;
+    }
+
+    #manageModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #manageModal > div {
+      background: #1a1a2e;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    #manageModal h2 {
+      margin: 0 0 20px 0;
+      color: #f1f1f1;
+    }
+
+    #closeModal {
+      background: none;
+      border: none;
+      color: #f1f1f1;
+      font-size: 24px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -181,10 +295,24 @@
 
   <div class="controls">
     <button id="autoPlay">🎵 自动播放</button>
+    <button id="recordBtn">⏺️ 录制</button>
+    <button id="stopRecordBtn" style="display:none;">⏹️ 停止录制</button>
   </div>
 
-  <div class="keyboard" id="keyboard"></div>
+  <div class="keyboard-container">
+    <div class="keyboard" id="keyboard"></div>
+  </div>
 
-  <script src="main.js?v=5"></script>
+  <div id="manageModal">
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2>管理曲目</h2>
+        <button id="closeModal">&times;</button>
+      </div>
+      <div id="songList"></div>
+    </div>
+  </div>
+
+  <script src="main.js?v=10"></script>
 </body>
 </html>

@@ -70,6 +70,20 @@ def get_songs():
     songs = list_songs()
     return jsonify({"songs": songs})
 
+@app.route('/api/songs/<filename>', methods=['DELETE'])
+def delete_song(filename):
+    songs_dir = Path(__file__).parent.parent / "songs"
+    song_path = songs_dir / filename
+    
+    if not song_path.exists():
+        return jsonify({"success": False, "message": "曲目不存在"})
+    
+    try:
+        song_path.unlink()
+        return jsonify({"success": True, "message": "删除成功"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
 @app.route('/api/transcribe', methods=['POST'])
 def transcribe():
     data = request.get_json(silent=True) or {}
@@ -94,6 +108,63 @@ def transcribe():
             {"note": "G4", "time": 1.0, "duration": 0.5}
         ]
         return jsonify(sample)
+
+# 前端音符名到数字音符的反向映射
+FRONTEND_NOTE_TO_NUMBER = {
+    'C3': '1', 'D3': '2', 'E3': '3', 'F3': '4', 'G3': '5', 'A3': '6', 'B3': '7',
+    'C4': '1+', 'D4': '2+', 'E4': '3+', 'F4': '4+', 'G4': '5+', 'A4': '6+', 'B4': '7+',
+    'C5': '1++', 'D5': '2++', 'E5': '3++', 'F5': '4++', 'G5': '5++', 'A5': '6++', 'B5': '7++',
+}
+
+@app.route('/api/record', methods=['POST'])
+def record():
+    data = request.get_json(silent=True) or {}
+    song_name = data.get('song_name', '')
+    notes = data.get('notes', [])
+    
+    if not song_name.strip():
+        return jsonify({"success": False, "message": "请输入曲目名称"})
+    
+    # 创建歌曲目录（如果不存在）
+    songs_dir = Path(__file__).parent.parent / "songs"
+    songs_dir.mkdir(exist_ok=True)
+    
+    # 生成文件名
+    filename = song_name.strip() + '.txt'
+    song_path = songs_dir / filename
+    
+    # 检查文件是否已存在
+    if song_path.exists():
+        return jsonify({"success": False, "message": "曲目已存在"})
+    
+    try:
+        # 写入文件头
+        content = "# " + song_name + "\n"
+        content += "# BPM=125，四四拍\n"
+        content += "# 四分音符=480ms，八分=240ms，十六分=120ms\n"
+        content += "# 音高标记：无标记 = 低音区（C3-B3），+ = 中音区（C4-B4），++ = 高音区（C5-B5）\n"
+        content += "# 格式：起始时间(ms)  音符  时值(ms)\n"
+        content += "# =====================================\n\n"
+        
+        # 写入音符数据
+        for note in notes:
+            note_name = note.get('note', '')
+            time = note.get('time', 0)
+            duration = note.get('duration', 0.5)
+            
+            if note_name in FRONTEND_NOTE_TO_NUMBER:
+                num_note = FRONTEND_NOTE_TO_NUMBER[note_name]
+                time_ms = int(time * 1000)
+                duration_ms = int(duration * 1000)
+                content += f"{time_ms:>8}   {num_note:<6} {duration_ms}\n"
+        
+        # 写入文件
+        with open(song_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return jsonify({"success": True, "message": "录制成功"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
